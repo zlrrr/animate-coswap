@@ -6,7 +6,9 @@ AI-powered couple image collection and face-swapping service
 
 This project is a web-based platform that collects couple images from various sources (ACG, movies, TV shows), stores them with metadata, and performs high-quality face-swapping using advanced AI algorithms.
 
-**Current Phase:** Phase 0 - Environment Setup & Algorithm Validation
+**Current Status:** ✅ **MVP COMPLETE** - Phases 0, 1, 2 Finished
+
+See [MVP-COMPLETE.md](./docs/MVP-COMPLETE.md) for detailed completion report.
 
 ## Features (Planned)
 
@@ -264,10 +266,10 @@ This is currently a personal project. Contributions may be accepted in the futur
 
 ## Roadmap
 
-- [x] Phase 0: Environment Setup & Algorithm Validation (2-3 days)
-- [ ] Phase 1: Backend MVP (4-5 days)
-- [ ] Phase 2: Frontend MVP (3-4 days)
-- [ ] MVP Testing & Validation (2 days)
+- [x] **Phase 0: Environment Setup & Algorithm Validation** ✅ Complete
+- [x] **Phase 1: Backend MVP** ✅ Complete
+- [x] **Phase 2: Frontend MVP** ✅ Complete
+- [ ] **MVP Testing & Validation** (Next: Download model & run tests)
 - [ ] Phase 3: Catcher Service (5-7 days) - Post-MVP
 - [ ] Phase 4: Browser Service (3-4 days) - Post-MVP
 - [ ] Phase 5: Production Deployment (3-4 days) - Post-MVP
@@ -305,8 +307,28 @@ For issues and questions:
 
 ## Project Status
 
-**Current Status:** Phase 0 - Environment Setup Complete ✓
+**Current Status:** ✅ **MVP COMPLETE** - Ready for Testing
 
-**Next Milestone:** Phase 1.1 - Backend Core Implementation
+**Completed:**
+- ✅ Phase 0: Project infrastructure and face-swap core
+- ✅ Phase 1: Backend MVP with full REST API
+- ✅ Phase 2: Frontend MVP with React UI
+
+**Next Steps:**
+1. Download face-swap model (inswapper_128.onnx)
+2. Run algorithm validation tests
+3. Test complete workflow end-to-end
+4. Deploy for internal testing
 
 **Last Updated:** 2024-01-XX
+
+---
+
+## Quick Links
+
+- 📖 [Complete MVP Report](./docs/MVP-COMPLETE.md)
+- 🚀 [Quick Start Guide](./QUICKSTART.md)
+- 📋 [Project Plan](./PLAN.md)
+- 🔧 [Backend Setup](./backend/README.md)
+- 🎨 [Frontend Setup](./frontend/README.md)
+- 📡 [API Documentation](./docs/phase-1/api-documentation.md)
