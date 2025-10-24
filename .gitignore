@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Models (large files)
+backend/models/*.onnx
+backend/models/*.pth
+backend/models/*.pt
+
+# Test fixtures (personal photos)
+tests/fixtures/*.jpg
+tests/fixtures/*.png
+tests/fixtures/*.jpeg
+!tests/fixtures/README.md
+
+# Test results
+tests/validation_results/
+tests/e2e/screenshots/
+
+# Storage
+backend/storage/
+storage/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+dist-ssr/
+
+# Frontend build
+frontend/dist/
+frontend/build/
+frontend/.cache/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Temporary files
+/tmp/
+*.tmp
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Backup files
+*.bak
+*.backup
