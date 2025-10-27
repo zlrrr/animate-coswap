@@ -10,13 +10,13 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def test_fixtures_dir():
     """Return path to test fixtures directory"""
     return os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'fixtures')
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def models_dir():
     """Return path to models directory"""
     return os.path.join(os.path.dirname(__file__), '..', 'models')

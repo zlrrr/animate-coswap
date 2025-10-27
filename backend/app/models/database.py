@@ -2,7 +2,7 @@
 SQLAlchemy database models
 """
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, ARRAY, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -38,9 +38,9 @@ class Image(Base):
     height = Column(Integer)
     image_type = Column(String(20), index=True)  # 'source', 'template', 'result'
     category = Column(String(50))  # 'acg', 'movie', 'tv', 'custom'
-    tags = Column(ARRAY(String), default=[])
+    tags = Column(JSON, default=lambda: [])  # Use JSON for SQLite compatibility
     uploaded_at = Column(DateTime, default=datetime.utcnow)
-    metadata = Column(JSON)
+    image_metadata = Column(JSON)  # Renamed from 'metadata' to avoid SQLAlchemy reserved name
 
     # Relationships
     user = relationship("User", back_populates="images")
