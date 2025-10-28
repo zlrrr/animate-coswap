@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     USE_GPU: bool = True
     GPU_DEVICE_ID: int = 0
 
+    # Acceleration Backend
+    # Options: "cuda", "coreml", "cpu", "auto"
+    # - "cuda": NVIDIA GPU (Linux/Windows with CUDA)
+    # - "coreml": Apple Neural Engine (macOS M-series)
+    # - "cpu": CPU only (all platforms)
+    # - "auto": Auto-detect best available
+    ACCELERATION_PROVIDER: str = "auto"
+
     # Task Queue
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"

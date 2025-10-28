@@ -1,0 +1,62 @@
+# Requirements for Linux x86_64 (Intel/AMD)
+# Python 3.10+
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Task Queue
+celery==5.3.4
+redis==5.0.1
+
+# Face-Swap / AI / ML
+insightface==0.7.3
+# For GPU support: install onnxruntime-gpu instead
+# For CPU only: use onnxruntime
+onnxruntime==1.16.3
+# onnxruntime-gpu==1.16.3  # Uncomment for CUDA support
+opencv-python==4.8.1.78
+numpy==1.24.3
+pillow==10.1.0
+
+# Image Processing
+scikit-image==0.22.0
+
+# HTTP Client
+httpx==0.25.1
+aiohttp==3.9.1
+
+# Storage
+minio==7.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-benchmark==4.0.0
+
+# Development
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# GPU Support Instructions (Linux x86_64):
+# 1. For NVIDIA GPUs with CUDA:
+#    - Uninstall: pip uninstall onnxruntime
+#    - Install: pip install onnxruntime-gpu==1.16.3
+#    - Requires: CUDA 11.x or 12.x
+#    - Check CUDA: nvidia-smi
+#
+# 2. For CPU only:
+#    - Use onnxruntime (already specified above)
+#
+# 3. For AMD GPUs:
+#    - Use ROCm backend (advanced, see ONNX Runtime docs)
