@@ -4,7 +4,15 @@ Platform detection and acceleration provider utilities
 
 import platform
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+
+# Try to import onnxruntime at module level for better testability
+try:
+    import onnxruntime as ort
+    ONNXRUNTIME_AVAILABLE = True
+except ImportError:
+    ort = None
+    ONNXRUNTIME_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +86,11 @@ def _get_specific_provider(provider: str) -> Tuple[List[str], str]:
 
 def _get_cuda_provider() -> Tuple[List[str], str]:
     """Get CUDA provider configuration"""
+    if not ONNXRUNTIME_AVAILABLE or ort is None:
+        logger.warning("ONNX Runtime not available, falling back to CPU")
+        return _get_cpu_provider()
+
     try:
-        import onnxruntime as ort
         available = ort.get_available_providers()
 
         if "CUDAExecutionProvider" in available:
@@ -97,8 +108,11 @@ def _get_cuda_provider() -> Tuple[List[str], str]:
 
 def _get_coreml_provider() -> Tuple[List[str], str]:
     """Get CoreML provider configuration (macOS)"""
+    if not ONNXRUNTIME_AVAILABLE or ort is None:
+        logger.warning("ONNX Runtime not available, falling back to CPU")
+        return _get_cpu_provider()
+
     try:
-        import onnxruntime as ort
         available = ort.get_available_providers()
 
         if "CoreMLExecutionProvider" in available:
@@ -110,7 +124,8 @@ def _get_coreml_provider() -> Tuple[List[str], str]:
                 result = subprocess.run(
                     ["sysctl", "-n", "machdep.cpu.brand_string"],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=2
                 )
                 cpu_info = result.stdout.strip()
                 desc = f"CoreML (Apple Neural Engine) - {cpu_info}"
@@ -182,10 +197,12 @@ def get_platform_info() -> dict:
     info["cuda_available"] = _check_cuda_available()
 
     # Get ONNX Runtime providers
-    try:
-        import onnxruntime as ort
-        info["onnx_providers"] = ort.get_available_providers()
-    except ImportError:
+    if ONNXRUNTIME_AVAILABLE and ort is not None:
+        try:
+            info["onnx_providers"] = ort.get_available_providers()
+        except Exception:
+            info["onnx_providers"] = []
+    else:
         info["onnx_providers"] = []
 
     return info
