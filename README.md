@@ -48,6 +48,44 @@ See [MVP-COMPLETE.md](./docs/MVP-COMPLETE.md) for detailed completion report.
 - **Testing:** pytest, vitest
 - **CI/CD:** GitHub Actions
 
+---
+
+## Platform Support 🖥️
+
+**Fully Supported Platforms:**
+
+| Platform | Architecture | Acceleration | Performance |
+|----------|--------------|--------------|-------------|
+| **macOS M1/M2/M3/M4** | ARM64 | CoreML + Neural Engine | ⭐⭐⭐⭐ Excellent |
+| **Linux x86_64** | x86_64 | NVIDIA CUDA / CPU | ⭐⭐⭐⭐⭐ Best |
+| **Windows** | x86_64 | NVIDIA CUDA / CPU | ⭐⭐⭐⭐ Very Good |
+| **Linux ARM64** | ARM64 | CUDA (Jetson) / CPU | ⭐⭐⭐ Good |
+
+**Quick Setup by Platform:**
+
+```bash
+# Detect your platform automatically
+python scripts/detect_platform.py
+
+# Install platform-specific dependencies
+# macOS M-series
+pip install -r backend/requirements-macos-m.txt
+
+# Linux x86_64
+pip install -r backend/requirements-linux-x86.txt
+
+# Windows
+pip install -r backend/requirements-windows.txt
+
+# Linux ARM64 (Raspberry Pi, Jetson, Graviton)
+pip install -r backend/requirements-linux-arm.txt
+```
+
+**Platform-Specific Guides:**
+- 📖 [macOS M1/M2/M3/M4 Setup Guide](./docs/GETTING-STARTED-MACOS-M.md)
+- 📖 [Complete Platform Support Documentation](./docs/PLATFORM-SUPPORT.md)
+- 📖 [Quick Start (All Platforms)](./QUICKSTART.md)
+
 ## Project Structure
 
 ```

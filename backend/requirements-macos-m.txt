@@ -1,0 +1,59 @@
+# Requirements for macOS Apple Silicon (M1/M2/M3/M4)
+# Python 3.10+ (ARM64)
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Task Queue
+celery==5.3.4
+redis==5.0.1
+
+# Face-Swap / AI / ML (ARM64 optimized)
+insightface==0.7.3
+# Use standard onnxruntime - it includes CoreML support on macOS
+onnxruntime==1.16.3
+opencv-python==4.8.1.78
+numpy==1.24.3
+pillow==10.1.0
+
+# Image Processing
+scikit-image==0.22.0
+
+# HTTP Client
+httpx==0.25.1
+aiohttp==3.9.1
+
+# Storage
+minio==7.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-benchmark==4.0.0
+
+# Development
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Additional macOS-specific optimizations
+# These are automatically installed but listed for clarity:
+# - CoreML support is built into onnxruntime
+# - Metal Performance Shaders available through opencv-python
+# - ARM64 native builds of numpy and other scientific packages
+
+# Notes for Apple Silicon:
+# 1. Do NOT install onnxruntime-gpu (it's for CUDA only)
+# 2. Use standard onnxruntime which includes CoreML Execution Provider
+# 3. Ensure you're using ARM64 native Python (check with: python -c "import platform; print(platform.machine())")
+# 4. If using Rosetta 2, performance will be significantly slower

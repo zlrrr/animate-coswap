@@ -1,0 +1,69 @@
+# Requirements for Linux ARM64 (Raspberry Pi, ARM servers, Jetson)
+# Python 3.10+
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+# Note: psycopg2-binary may need to be built from source on some ARM platforms
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Task Queue
+celery==5.3.4
+redis==5.0.1
+
+# Face-Swap / AI / ML (ARM64)
+insightface==0.7.3
+# Standard onnxruntime supports ARM64
+onnxruntime==1.16.3
+# For NVIDIA Jetson with CUDA, use onnxruntime-gpu compiled for ARM64-CUDA
+opencv-python==4.8.1.78
+numpy==1.24.3
+pillow==10.1.0
+
+# Image Processing
+scikit-image==0.22.0
+
+# HTTP Client
+httpx==0.25.1
+aiohttp==3.9.1
+
+# Storage
+minio==7.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-benchmark==4.0.0
+
+# Development
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# ARM64 Linux Specific Notes:
+#
+# 1. NVIDIA Jetson (ARM64 + CUDA):
+#    - Use NVIDIA's JetPack SDK
+#    - Install onnxruntime-gpu built for ARM64-CUDA
+#    - See: https://developer.nvidia.com/embedded/jetson-software
+#
+# 2. Raspberry Pi 4/5:
+#    - CPU only, no GPU acceleration
+#    - May be slow for real-time face-swapping
+#    - Consider using lighter models
+#
+# 3. AWS Graviton / Other ARM servers:
+#    - Good CPU performance
+#    - Use standard onnxruntime
+#    - No GPU acceleration typically
+#
+# 4. Some packages may need compilation:
+#    sudo apt-get install python3-dev libpq-dev build-essential
