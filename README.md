@@ -82,9 +82,11 @@ pip install -r backend/requirements-linux-arm.txt
 ```
 
 **Platform-Specific Guides:**
+- 🚀 **[macOS Quick Start Guide](./docs/QUICK-START-MACOS.md)** - 5-minute setup for macOS
 - 📖 [macOS M1/M2/M3/M4 Setup Guide](./docs/GETTING-STARTED-MACOS-M.md)
 - 📖 [Complete Platform Support Documentation](./docs/PLATFORM-SUPPORT.md)
-- 📖 [Quick Start (All Platforms)](./QUICKSTART.md)
+- 🔧 [Database Troubleshooting](./docs/TROUBLESHOOTING-DATABASE.md)
+- 🔧 [Model Download Fix](./docs/MODEL-DOWNLOAD-FIX.md)
 
 ## Project Structure
 
