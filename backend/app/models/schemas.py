@@ -69,3 +69,70 @@ class FaceSwapResult(BaseModel):
     result_image_path: Optional[str] = None
     processing_time: float
     error_message: Optional[str] = None
+
+
+# ============================================================
+# Phase 1.5 Schemas
+# ============================================================
+
+class ImageResponse(BaseModel):
+    """Image response with Phase 1.5 fields"""
+    id: int
+    filename: str
+    storage_path: str
+    storage_type: Optional[str] = None
+    file_size: int
+    width: int
+    height: int
+    image_type: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    session_id: Optional[str] = None
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PhotoListResponse(BaseModel):
+    """Response for photo list"""
+    photos: List[ImageResponse]
+    total: int
+    session_id: Optional[str] = None
+    errors: Optional[List[dict]] = None
+
+
+class TemplateResponse(BaseModel):
+    """Template response with Phase 1.5 fields"""
+    id: int
+    name: str
+    description: Optional[str] = None
+    category: str
+    original_image_id: int
+    is_preprocessed: bool
+    face_count: int
+    male_face_count: int
+    female_face_count: int
+    popularity_score: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    image_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TemplateListResponse(BaseModel):
+    """Response for template list"""
+    templates: List[TemplateResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class DeleteResponse(BaseModel):
+    """Response for delete operations"""
+    message: str
+    deleted_id: Optional[int] = None
+    deleted_count: Optional[int] = None
+    errors: Optional[List[dict]] = None
