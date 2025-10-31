@@ -29,6 +29,25 @@ BatchTask  # 新表：批量任务管理
 FaceSwapTask.batch_id  # 关联批量任务
 ```
 
+### ✅ 数据库迁移完成
+
+Phase 1.5 数据库迁移文件已创建并准备好应用：
+
+- **Migration File**: `backend/alembic/versions/00f2e8fecd91_initial_schema_with_phase_1_5.py`
+- **Revision ID**: `00f2e8fecd91`
+- **Migration Type**: Initial schema (creates all tables with Phase 1.5 features)
+
+**应用迁移**：
+```bash
+# 自动化方式（推荐）
+./scripts/apply_phase_1_5_migration.sh
+
+# 验证迁移
+python scripts/verify_phase_1_5_schema.py
+```
+
+详细说明：参见 **[PHASE-1.5-MIGRATION-GUIDE.md](./PHASE-1.5-MIGRATION-GUIDE.md)**
+
 ### ✅ 详细文档完成
 
 1. **[PLAN-PHASE-1.5.md](./PLAN-PHASE-1.5.md)** - 完整计划
@@ -43,6 +62,12 @@ FaceSwapTask.batch_id  # 关联批量任务
    - 时间估算
    - 测试用例模板
 
+3. **[PHASE-1.5-MIGRATION-GUIDE.md](./PHASE-1.5-MIGRATION-GUIDE.md)** - 数据库迁移指南
+   - 自动化迁移脚本
+   - 手动迁移步骤
+   - 故障排除
+   - 验证清单
+
 ---
 
 ## 🚀 立即执行（在您的 Mac 上）
@@ -54,40 +79,70 @@ cd ~/develop/project/animate-coswap
 git pull origin claude/implement-plan-steps-011CUWofAJKPWXPtKKeXEhGH
 ```
 
-### 第 2 步：运行数据库迁移 ⭐ 必须执行
+### 第 2 步：应用数据库迁移 ⭐ 必须执行
+
+**方式 A：自动化（推荐）**
+
+```bash
+# 一键应用迁移
+./scripts/apply_phase_1_5_migration.sh
+```
+
+这个脚本会自动：
+- ✅ 检查 Docker 服务
+- ✅ 创建 .env 文件（如果不存在）
+- ✅ 应用 Phase 1.5 迁移
+- ✅ 验证所有表和字段
+
+**方式 B：手动**
 
 ```bash
 cd backend
 source ../venv/bin/activate
 
-# 创建迁移
-alembic revision --autogenerate -m "Add Phase 1.5 enhanced features"
-
-# 查看生成的迁移文件
+# 查看迁移文件
 ls -la alembic/versions/
+# 应该看到: 00f2e8fecd91_initial_schema_with_phase_1_5.py
 
 # 应用迁移
 alembic upgrade head
+
+# 验证
+cd ..
+python scripts/verify_phase_1_5_schema.py
 ```
 
 ### 第 3 步：验证数据库
 
 ```bash
-# 检查新表
+# 使用自动验证脚本（推荐）
+python scripts/verify_phase_1_5_schema.py
+
+# 或手动检查：
+
+# 检查所有表
 docker exec faceswap_postgres psql -U faceswap_user -d faceswap -c "\dt"
+# 应该看到 8 个表，包括新表：
+# - template_preprocessing ✨ 新增
+# - batch_tasks ✨ 新增
 
-# 应该看到新表：
-# - template_preprocessing
-# - batch_tasks
-
-# 检查 images 表的新字段
+# 检查 images 表的 Phase 1.5 字段
 docker exec faceswap_postgres psql -U faceswap_user -d faceswap -c "\d images"
-
 # 应该看到新字段：
-# - storage_type
-# - expires_at
-# - session_id
+# - storage_type ✨
+# - expires_at ✨
+# - session_id ✨
+
+# 检查 templates 表的 Phase 1.5 字段
+docker exec faceswap_postgres psql -U faceswap_user -d faceswap -c "\d templates"
+# 应该看到：
+# - name (was: title) ✨
+# - is_preprocessed ✨
+# - male_face_count ✨
+# - female_face_count ✨
 ```
+
+**如果遇到问题**，查看详细故障排除：[PHASE-1.5-MIGRATION-GUIDE.md](./PHASE-1.5-MIGRATION-GUIDE.md)
 
 ---
 
