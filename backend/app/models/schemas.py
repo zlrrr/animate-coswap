@@ -183,3 +183,71 @@ class BatchPreprocessingResponse(BaseModel):
     queued: int
     already_processed: int
     message: str
+
+
+# ============================================================
+# Phase 1.5 Checkpoint 1.5.4: Batch Processing Schemas
+# ============================================================
+
+class BatchFaceSwapRequest(BaseModel):
+    """Request for batch face-swap"""
+    husband_photo_id: int
+    wife_photo_id: int
+    template_ids: List[int]
+    use_default_mapping: bool = True
+    use_preprocessed: bool = True
+    face_mappings: Optional[List[FaceMappingItem]] = None
+
+
+class BatchFaceSwapResponse(BaseModel):
+    """Response for batch face-swap creation"""
+    batch_id: str
+    total_tasks: int
+    status: str
+    created_at: datetime
+    message: str
+
+
+class BatchStatusResponse(BaseModel):
+    """Response for batch status"""
+    batch_id: str
+    status: str
+    total_tasks: int
+    completed_tasks: int
+    failed_tasks: int
+    progress_percentage: float
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class BatchTaskListResponse(BaseModel):
+    """Response for batch task list"""
+    batch_id: str
+    tasks: List[TaskStatusResponse]
+    total: int
+
+
+class BatchResultItem(BaseModel):
+    """Single result in batch"""
+    task_id: str
+    template_id: int
+    status: str
+    result_image_url: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class BatchResultsResponse(BaseModel):
+    """Response for batch results"""
+    batch_id: str
+    results: List[BatchResultItem]
+    completed_count: int
+    failed_count: int
+
+
+class BatchListResponse(BaseModel):
+    """Response for batch list"""
+    batches: List[BatchStatusResponse]
+    total: int
