@@ -2,19 +2,27 @@
 FaceSwap API - Phase 1.5 Enhanced
 
 Checkpoint 1.5.3: Flexible Face Mapping
-Supports custom and default face mappings
+Checkpoint 1.5.4: Batch Processing
+Supports custom and default face mappings, batch processing
 """
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
 import uuid
+import io
 
 from app.core.database import get_db
 from app.models.database import Image, Template, FaceSwapTask
-from app.models.schemas import FaceSwapRequest, FaceSwapResponse, TaskStatusResponse
+from app.models.schemas import (
+    FaceSwapRequest, FaceSwapResponse, TaskStatusResponse,
+    BatchFaceSwapRequest, BatchFaceSwapResponse, BatchStatusResponse,
+    BatchTaskListResponse, BatchResultsResponse, BatchListResponse
+)
 from app.services.face_mapping import FaceMappingService, FaceMappingError
+from app.services.batch_processing import BatchProcessingService, BatchProcessingError
 from app.utils.storage import storage_service
 
 logger = logging.getLogger(__name__)
@@ -249,3 +257,271 @@ async def list_tasks(
         )
 
     return results
+
+
+# ============================================================
+# Phase 1.5 Checkpoint 1.5.4: Batch Processing
+# ============================================================
+
+@router.post("/batch", response_model=BatchFaceSwapResponse, status_code=202)
+async def create_batch_faceswap(
+    request: BatchFaceSwapRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Create a batch face-swap task for multiple templates (Phase 1.5.4)
+
+    Process the same husband/wife photos against multiple templates.
+
+    Args:
+        request: Batch face-swap request
+        background_tasks: FastAPI background tasks
+        db: Database session
+
+    Returns:
+        Batch information with batch_id
+    """
+    try:
+        # Convert Pydantic models to dicts if needed
+        custom_mappings = None
+        if request.face_mappings:
+            custom_mappings = FaceMappingService.convert_to_dict(
+                request.face_mappings
+            )
+
+        batch_id, total_tasks = BatchProcessingService.create_batch(
+            husband_photo_id=request.husband_photo_id,
+            wife_photo_id=request.wife_photo_id,
+            template_ids=request.template_ids,
+            use_default_mapping=request.use_default_mapping,
+            use_preprocessed=request.use_preprocessed,
+            custom_mappings=custom_mappings,
+            db=db
+        )
+
+        logger.info(
+            f"Batch created: batch_id={batch_id}, "
+            f"total_tasks={total_tasks}, "
+            f"templates={len(request.template_ids)}"
+        )
+
+        # Queue background processing for all tasks
+        # TODO: In production, use Celery
+        # from app.services.faceswap.processor import process_batch_tasks
+        # background_tasks.add_task(process_batch_tasks, batch_id)
+
+        return BatchFaceSwapResponse(
+            batch_id=batch_id,
+            total_tasks=total_tasks,
+            status="pending",
+            created_at=datetime.utcnow(),
+            message=f"Batch created with {total_tasks} tasks"
+        )
+
+    except BatchProcessingError as e:
+        logger.error(f"Batch creation error: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Batch creation failed: {str(e)}"
+        )
+
+
+@router.get("/batch/{batch_id}", response_model=BatchStatusResponse)
+async def get_batch_status(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get batch status and progress (Phase 1.5.4)
+
+    Args:
+        batch_id: Batch ID
+        db: Database session
+
+    Returns:
+        Batch status with progress information
+    """
+    batch_status = BatchProcessingService.get_batch_status(batch_id, db)
+
+    if not batch_status:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    return BatchStatusResponse(**batch_status)
+
+
+@router.get("/batch/{batch_id}/tasks", response_model=BatchTaskListResponse)
+async def get_batch_tasks(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all tasks in a batch (Phase 1.5.4)
+
+    Args:
+        batch_id: Batch ID
+        db: Database session
+
+    Returns:
+        List of tasks in the batch
+    """
+    tasks = BatchProcessingService.get_batch_tasks(batch_id, db)
+
+    if not tasks and not BatchProcessingService.get_batch_status(batch_id, db):
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Convert to TaskStatusResponse
+    task_responses = []
+    for task in tasks:
+        result_image_url = None
+        if task.result_image_id:
+            result_image = db.query(Image).filter(
+                Image.id == task.result_image_id
+            ).first()
+            if result_image:
+                result_image_url = storage_service.get_file_url(
+                    result_image.storage_path
+                )
+
+        task_responses.append(
+            TaskStatusResponse(
+                task_id=task.task_id,
+                status=task.status,
+                progress=task.progress or 0,
+                result_image_url=result_image_url,
+                processing_time=task.processing_time,
+                error_message=task.error_message,
+                created_at=task.created_at,
+                completed_at=task.completed_at,
+                face_mappings=task.face_mappings
+            )
+        )
+
+    return BatchTaskListResponse(
+        batch_id=batch_id,
+        tasks=task_responses,
+        total=len(task_responses)
+    )
+
+
+@router.get("/batch/{batch_id}/results", response_model=BatchResultsResponse)
+async def get_batch_results(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get batch results (Phase 1.5.4)
+
+    Args:
+        batch_id: Batch ID
+        db: Database session
+
+    Returns:
+        Batch results with URLs
+    """
+    if not BatchProcessingService.get_batch_status(batch_id, db):
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    results = BatchProcessingService.get_batch_results(batch_id, db)
+
+    return BatchResultsResponse(**results)
+
+
+@router.get("/batch/{batch_id}/download")
+async def download_batch_results(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Download batch results as ZIP (Phase 1.5.4)
+
+    Args:
+        batch_id: Batch ID
+        db: Database session
+
+    Returns:
+        ZIP file with all completed results
+    """
+    if not BatchProcessingService.get_batch_status(batch_id, db):
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Create ZIP
+    zip_content = BatchProcessingService.create_results_zip(batch_id, db)
+
+    if not zip_content:
+        raise HTTPException(
+            status_code=404,
+            detail="No completed results available for download"
+        )
+
+    # Return as streaming response
+    return StreamingResponse(
+        io.BytesIO(zip_content),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=batch_{batch_id}_results.zip"
+        }
+    )
+
+
+@router.delete("/batch/{batch_id}", status_code=200)
+async def cancel_batch(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel a batch and all pending tasks (Phase 1.5.4)
+
+    Args:
+        batch_id: Batch ID
+        db: Database session
+
+    Returns:
+        Success message
+    """
+    success = BatchProcessingService.cancel_batch(batch_id, db)
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Batch not found or cannot be canceled"
+        )
+
+    return {"message": f"Batch {batch_id} canceled successfully"}
+
+
+@router.get("/batches", response_model=BatchListResponse)
+async def list_batches(
+    status: str = None,
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    List all batches (Phase 1.5.4)
+
+    Args:
+        status: Filter by status (pending, processing, completed, failed)
+        limit: Number of results
+        offset: Pagination offset
+        db: Database session
+
+    Returns:
+        List of batches
+    """
+    batches, total = BatchProcessingService.list_batches(
+        status=status,
+        limit=limit,
+        offset=offset,
+        db=db
+    )
+
+    # Convert to response models
+    batch_responses = [
+        BatchStatusResponse(**batch) for batch in batches
+    ]
+
+    return BatchListResponse(
+        batches=batch_responses,
+        total=total
+    )
