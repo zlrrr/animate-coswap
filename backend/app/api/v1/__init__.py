@@ -1,7 +1,7 @@
 """API v1 routes"""
 
 from fastapi import APIRouter
-from app.api.v1 import faceswap, photos, templates, templates_preprocessing, images
+from app.api.v1 import faceswap, faceswap_v15, photos, templates, templates_preprocessing, images
 
 api_router = APIRouter()
 
@@ -10,6 +10,13 @@ api_router.include_router(
     faceswap.router,
     prefix="/faceswap",
     tags=["faceswap"]
+)
+
+# Phase 1.5: Enhanced FaceSwap with flexible mapping
+api_router.include_router(
+    faceswap_v15.router,
+    prefix="/faceswap",
+    tags=["faceswap-v1.5"]
 )
 
 # Phase 1.5: Separated upload APIs
