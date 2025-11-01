@@ -5,16 +5,23 @@ Phase 1.5 Checkpoint 1.5.1 & 1.5.2
 Handles permanent template uploads and preprocessing
 """
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 import logging
 from datetime import datetime
 import cv2
 
 from app.core.database import get_db
-from app.models.database import Image, Template
-from app.models.schemas import TemplateResponse, TemplateListResponse, DeleteResponse
+from app.models.database import Image, Template, TemplatePreprocessing
+from app.models.schemas import (
+    TemplateResponse,
+    TemplateListResponse,
+    DeleteResponse,
+    PreprocessingResponse,
+    PreprocessingStatusResponse,
+    BatchPreprocessingResponse
+)
 from app.utils.storage import storage_service
 
 logger = logging.getLogger(__name__)

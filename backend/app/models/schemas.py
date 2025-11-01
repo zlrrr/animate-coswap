@@ -136,3 +136,37 @@ class DeleteResponse(BaseModel):
     deleted_id: Optional[int] = None
     deleted_count: Optional[int] = None
     errors: Optional[List[dict]] = None
+
+
+class PreprocessingResponse(BaseModel):
+    """Response for preprocessing trigger"""
+    template_id: int
+    status: str
+    message: str
+
+    class Config:
+        from_attributes = True
+
+
+class PreprocessingStatusResponse(BaseModel):
+    """Response for preprocessing status"""
+    template_id: int
+    preprocessing_status: str
+    faces_detected: int
+    face_data: List[dict]
+    masked_image_id: Optional[int] = None
+    masked_image_url: Optional[str] = None
+    original_image_id: int
+    processed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class BatchPreprocessingResponse(BaseModel):
+    """Response for batch preprocessing"""
+    total: int
+    queued: int
+    already_processed: int
+    message: str

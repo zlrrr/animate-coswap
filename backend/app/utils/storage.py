@@ -7,10 +7,12 @@ Supports local filesystem and S3-compatible storage (MinIO/AWS S3)
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, Tuple
 import logging
 from datetime import datetime
 import hashlib
+import cv2
+import numpy as np
 
 from app.core.config import settings
 
@@ -143,6 +145,51 @@ class StorageService:
         except Exception as e:
             logger.error(f"Error deleting file {storage_path}: {e}")
             return False
+
+    def save_image(
+        self,
+        image: np.ndarray,
+        filename: str,
+        category: str = "results"
+    ) -> Tuple[str, int]:
+        """
+        Save image (numpy array) to storage
+
+        Args:
+            image: Image as numpy array (BGR format)
+            filename: Original filename
+            category: Storage category (source, templates, results, temp, preprocessed)
+
+        Returns:
+            Tuple of (storage_path, file_size)
+        """
+        # Ensure preprocessed directory exists
+        if category == "preprocessed":
+            preprocessed_dir = self.storage_path / category
+            preprocessed_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique filename
+        new_filename = self._generate_filename(filename, category)
+
+        # Build full path
+        category_dir = self.storage_path / category
+        file_path = category_dir / new_filename
+
+        # Save image using cv2
+        success = cv2.imwrite(str(file_path), image)
+
+        if not success:
+            raise IOError(f"Failed to save image: {file_path}")
+
+        # Get file size
+        file_size = file_path.stat().st_size
+
+        # Return relative path for database storage
+        relative_path = f"{category}/{new_filename}"
+
+        logger.info(f"Image saved: {relative_path} ({file_size} bytes)")
+
+        return relative_path, file_size
 
     def get_file_url(self, storage_path: str) -> str:
         """
