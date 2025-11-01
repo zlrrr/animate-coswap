@@ -17,23 +17,35 @@ class ImageUploadResponse(BaseModel):
     height: int
 
 
+class FaceMappingItem(BaseModel):
+    """Single face mapping rule"""
+    source_photo: str  # "husband" or "wife"
+    source_face_index: int = 0
+    target_face_index: int
+
+
 class FaceSwapRequest(BaseModel):
-    """Request to create a face-swap task"""
-    husband_image_id: int
-    wife_image_id: int
+    """Request to create a face-swap task (Phase 1.5)"""
+    husband_photo_id: int  # Renamed from husband_image_id
+    wife_photo_id: int  # Renamed from wife_image_id
     template_id: int
+    use_default_mapping: bool = True  # Phase 1.5: Auto-map by gender
+    use_preprocessed: bool = True  # Phase 1.5: Use preprocessed template
+    face_mappings: Optional[List[FaceMappingItem]] = None  # Phase 1.5: Custom mapping
 
 
 class FaceSwapResponse(BaseModel):
-    """Response for face-swap task creation"""
-    task_id: int
+    """Response for face-swap task creation (Phase 1.5)"""
+    task_id: str  # Phase 1.5: Changed to string (UUID-like)
     status: str
     created_at: datetime
+    face_mappings: Optional[List[dict]] = None  # Phase 1.5: Show computed mappings
+    use_preprocessed: bool = True
 
 
 class TaskStatusResponse(BaseModel):
-    """Response for task status query"""
-    task_id: int
+    """Response for task status query (Phase 1.5)"""
+    task_id: str  # Phase 1.5: String task_id
     status: str
     progress: int
     result_image_url: Optional[str] = None
@@ -41,6 +53,7 @@ class TaskStatusResponse(BaseModel):
     error_message: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
+    face_mappings: Optional[List[dict]] = None  # Phase 1.5: Show mappings used
 
 
 class TemplateListItem(BaseModel):
