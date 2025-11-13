@@ -151,13 +151,57 @@ class BatchTask(Base):
 
 
 class CrawlTask(Base):
-    """Crawl task model (Phase 3+)"""
+    """Crawl task model for image collection (Phase 3)"""
     __tablename__ = "crawl_tasks"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_type = Column(String(50))  # 'pixiv', 'danbooru', 'custom'
-    search_query = Column(String)
-    filters = Column(JSON)
-    status = Column(String(20), default="pending")
+    task_id = Column(String(100), unique=True, nullable=False)  # Unique task identifier
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    source_type = Column(String(50), nullable=False, index=True)  # 'pixiv', 'danbooru', 'gelbooru'
+    search_query = Column(String, nullable=False)
+    category = Column(String(50))  # Target category for collected images
+    filters = Column(JSON)  # Search filters (rating, min_score, etc.)
+    status = Column(String(20), default="pending", index=True)  # 'pending', 'running', 'paused', 'completed', 'failed'
     images_collected = Column(Integer, default=0)
+    images_saved = Column(Integer, default=0)
+    images_filtered = Column(Integer, default=0)  # Images filtered out
+    target_count = Column(Integer, nullable=False)  # Target number of images
+    progress = Column(Integer, default=0)  # Progress percentage
+    error_message = Column(String)
+    started_at = Column(DateTime)
+    paused_at = Column(DateTime)
+    completed_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    collected_images = relationship("CollectedImage", back_populates="crawl_task")
+
+
+class CollectedImage(Base):
+    """Collected image metadata from crawlers (Phase 3)"""
+    __tablename__ = "collected_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    crawl_task_id = Column(Integer, ForeignKey("crawl_tasks.id"), nullable=False, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=True)  # Reference to saved image
+    source_url = Column(String(500), nullable=False)
+    source = Column(String(50), nullable=False)  # 'pixiv', 'danbooru', etc.
+    title = Column(String(255))
+    artist = Column(String(255))
+    tags = Column(JSON, default=lambda: [])
+    width = Column(Integer)
+    height = Column(Integer)
+    file_size = Column(Integer)
+    face_count = Column(Integer)
+    source_id = Column(String(100))  # ID from source (pixiv_id, danbooru_id, etc.)
+    score = Column(Integer)  # Popularity score from source
+    rating = Column(String(10))  # Content rating
+    download_status = Column(String(20), default="pending")  # 'pending', 'downloaded', 'failed'
+    saved_as_template = Column(Boolean, default=False)
+    collected_at = Column(DateTime, default=datetime.utcnow)
+    downloaded_at = Column(DateTime)
+
+    # Relationships
+    crawl_task = relationship("CrawlTask", back_populates="collected_images")
+    image = relationship("Image")

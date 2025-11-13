@@ -251,3 +251,82 @@ class BatchListResponse(BaseModel):
     """Response for batch list"""
     batches: List[BatchStatusResponse]
     total: int
+
+
+# ======================================
+# Phase 3: Catcher Service Schemas
+# ======================================
+
+class CrawlTaskCreate(BaseModel):
+    """Request to create a new crawl task"""
+    source_type: str = Field(..., description="Source type: pixiv, danbooru, gelbooru")
+    search_query: str = Field(..., min_length=1, description="Search query/tags")
+    category: str = Field("acg", description="Target category for collected images")
+    filters: Optional[dict] = Field(default=None, description="Additional filters")
+    limit: int = Field(100, ge=1, le=1000, description="Maximum number of images to collect")
+
+
+class CrawlTaskResponse(BaseModel):
+    """Response for crawl task"""
+    task_id: str
+    source_type: str
+    search_query: str
+    category: str
+    filters: Optional[dict] = None
+    target_count: int
+    status: str
+    images_collected: int
+    images_saved: int
+    images_filtered: int
+    progress: int
+    error_message: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CrawlTaskStatus(BaseModel):
+    """Detailed status for crawl task"""
+    task_id: str
+    status: str
+    source_type: str
+    search_query: str
+    target_count: int
+    images_collected: int
+    images_saved: int
+    images_filtered: int
+    progress: int
+    error_message: Optional[str] = None
+    started_at: Optional[datetime] = None
+    paused_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollectedImageResponse(BaseModel):
+    """Response for collected image metadata"""
+    id: int
+    source_url: str
+    source: str
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    tags: List[str] = []
+    width: Optional[int] = None
+    height: Optional[int] = None
+    file_size: Optional[int] = None
+    face_count: Optional[int] = None
+    score: Optional[int] = None
+    rating: Optional[str] = None
+    download_status: str
+    saved_as_template: bool
+    collected_at: datetime
+    downloaded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
