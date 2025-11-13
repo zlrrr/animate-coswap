@@ -9,24 +9,24 @@ import { Steps, Button, message, Card } from 'antd';
 import ImageUploader from '../components/ImageUploader';
 import TemplateGallery from '../components/TemplateGallery';
 import TaskProgress from '../components/TaskProgress';
-import { apiClient, ImageUploadResponse } from '../services/api';
+import { apiClient, PhotoUploadResponse } from '../services/api';
 
 const { Step } = Steps;
 
 export const FaceSwapWorkflow: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [husbandImageId, setHusbandImageId] = useState<number | null>(null);
-  const [wifeImageId, setWifeImageId] = useState<number | null>(null);
+  const [husbandPhotoId, setHusbandPhotoId] = useState<number | null>(null);
+  const [wifePhotoId, setWifePhotoId] = useState<number | null>(null);
   const [templateId, setTemplateId] = useState<number | null>(null);
-  const [taskId, setTaskId] = useState<number | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  const handleHusbandUpload = (imageData: ImageUploadResponse) => {
-    setHusbandImageId(imageData.image_id);
+  const handleHusbandUpload = (photoData: PhotoUploadResponse) => {
+    setHusbandPhotoId(photoData.id);
   };
 
-  const handleWifeUpload = (imageData: ImageUploadResponse) => {
-    setWifeImageId(imageData.image_id);
+  const handleWifeUpload = (photoData: PhotoUploadResponse) => {
+    setWifePhotoId(photoData.id);
   };
 
   const handleTemplateSelect = (id: number) => {
@@ -34,7 +34,7 @@ export const FaceSwapWorkflow: React.FC = () => {
   };
 
   const startProcessing = async () => {
-    if (!husbandImageId || !wifeImageId || !templateId) {
+    if (!husbandPhotoId || !wifePhotoId || !templateId) {
       message.error('Please complete all steps first!');
       return;
     }
@@ -43,14 +43,16 @@ export const FaceSwapWorkflow: React.FC = () => {
 
     try {
       const response = await apiClient.createFaceSwapTask({
-        husband_image_id: husbandImageId,
-        wife_image_id: wifeImageId,
+        husband_photo_id: husbandPhotoId,
+        wife_photo_id: wifePhotoId,
         template_id: templateId,
+        use_default_mapping: true,
+        use_preprocessed: true,
       });
 
       setTaskId(response.task_id);
       setCurrentStep(3);
-      message.success('Face swap task created! Processing...');
+      message.success(response.message || 'Face swap task created! Processing...');
     } catch (error: any) {
       message.error(`Failed to create task: ${error.response?.data?.detail || error.message}`);
     } finally {
@@ -60,8 +62,8 @@ export const FaceSwapWorkflow: React.FC = () => {
 
   const resetWorkflow = () => {
     setCurrentStep(0);
-    setHusbandImageId(null);
-    setWifeImageId(null);
+    setHusbandPhotoId(null);
+    setWifePhotoId(null);
     setTemplateId(null);
     setTaskId(null);
   };
@@ -122,7 +124,7 @@ export const FaceSwapWorkflow: React.FC = () => {
                   type="primary"
                   size="large"
                   onClick={() => setCurrentStep(1)}
-                  disabled={!husbandImageId || !wifeImageId}
+                  disabled={!husbandPhotoId || !wifePhotoId}
                   style={{ marginTop: 24 }}
                 >
                   Next: Select Template
