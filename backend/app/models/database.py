@@ -205,3 +205,109 @@ class CollectedImage(Base):
     # Relationships
     crawl_task = relationship("CrawlTask", back_populates="collected_images")
     image = relationship("Image")
+
+
+# ======================================
+# Phase 4: Browser Service Models
+# ======================================
+
+class Tag(Base):
+    """Tag model for categorizing and organizing images (Phase 4)"""
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False, index=True)
+    category = Column(String(50))  # 'character', 'style', 'scene', 'emotion', etc.
+    description = Column(String)
+    usage_count = Column(Integer, default=0)  # Number of times tag is used
+    is_system = Column(Boolean, default=False)  # System-generated vs user-created
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    image_tags = relationship("ImageTag", back_populates="tag")
+
+
+class ImageTag(Base):
+    """Association table for Image-Tag many-to-many relationship (Phase 4)"""
+    __tablename__ = "image_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=False, index=True)
+    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False, index=True)
+    confidence = Column(Float)  # For AI-generated tags (0-1)
+    created_by = Column(String(20), default="user")  # 'user', 'ai', 'system'
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    image = relationship("Image")
+    tag = relationship("Tag", back_populates="image_tags")
+
+
+class Collection(Base):
+    """Collection model for organizing templates/images (Phase 4)"""
+    __tablename__ = "collections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    description = Column(String)
+    is_public = Column(Boolean, default=False)
+    image_count = Column(Integer, default=0)
+    cover_image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    cover_image = relationship("Image", foreign_keys=[cover_image_id])
+    items = relationship("CollectionItem", back_populates="collection")
+
+
+class CollectionItem(Base):
+    """Items within a collection (Phase 4)"""
+    __tablename__ = "collection_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=False, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
+    template_id = Column(Integer, ForeignKey("templates.id"), nullable=True)
+    order = Column(Integer, default=0)  # Display order within collection
+    notes = Column(String)  # User notes for this item
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    collection = relationship("Collection", back_populates="items")
+    image = relationship("Image")
+    template = relationship("Template")
+
+
+class Favorite(Base):
+    """User favorites for quick access (Phase 4)"""
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
+    template_id = Column(Integer, ForeignKey("templates.id"), nullable=True)
+    favorited_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    image = relationship("Image")
+    template = relationship("Template")
+
+
+class SearchHistory(Base):
+    """User search history for analytics and suggestions (Phase 4)"""
+    __tablename__ = "search_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    query = Column(String, nullable=False)
+    filters = Column(JSON)  # Search filters used
+    result_count = Column(Integer)
+    searched_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+

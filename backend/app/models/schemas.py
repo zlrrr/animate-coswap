@@ -330,3 +330,162 @@ class CollectedImageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# ======================================
+# Phase 4: Browser Service Schemas
+# ======================================
+
+class TagCreate(BaseModel):
+    """Request to create a new tag"""
+    name: str = Field(..., min_length=1, max_length=100)
+    category: Optional[str] = Field(None, max_length=50)
+    description: Optional[str] = None
+
+
+class TagResponse(BaseModel):
+    """Response for tag"""
+    id: int
+    name: str
+    category: Optional[str] = None
+    description: Optional[str] = None
+    usage_count: int
+    is_system: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ImageTagCreate(BaseModel):
+    """Request to add tag to image"""
+    image_id: int
+    tag_id: int
+    confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class ImageTagResponse(BaseModel):
+    """Response for image tag"""
+    id: int
+    image_id: int
+    tag_id: int
+    tag_name: str
+    confidence: Optional[float] = None
+    created_by: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollectionCreate(BaseModel):
+    """Request to create a new collection"""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_public: bool = False
+
+
+class CollectionUpdate(BaseModel):
+    """Request to update collection"""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_public: Optional[bool] = None
+    cover_image_id: Optional[int] = None
+
+
+class CollectionResponse(BaseModel):
+    """Response for collection"""
+    id: int
+    name: str
+    description: Optional[str] = None
+    is_public: bool
+    image_count: int
+    cover_image_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollectionItemCreate(BaseModel):
+    """Request to add item to collection"""
+    collection_id: int
+    image_id: Optional[int] = None
+    template_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class CollectionItemResponse(BaseModel):
+    """Response for collection item"""
+    id: int
+    collection_id: int
+    image_id: Optional[int] = None
+    template_id: Optional[int] = None
+    order: int
+    notes: Optional[str] = None
+    added_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FavoriteCreate(BaseModel):
+    """Request to add favorite"""
+    image_id: Optional[int] = None
+    template_id: Optional[int] = None
+
+
+class FavoriteResponse(BaseModel):
+    """Response for favorite"""
+    id: int
+    image_id: Optional[int] = None
+    template_id: Optional[int] = None
+    favorited_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AdvancedSearchRequest(BaseModel):
+    """Request for advanced search"""
+    query: Optional[str] = Field(None, description="Text search query")
+    tags: Optional[List[str]] = Field(None, description="Tag filters")
+    category: Optional[str] = Field(None, description="Category filter")
+    min_width: Optional[int] = Field(None, ge=1, description="Minimum width")
+    min_height: Optional[int] = Field(None, ge=1, description="Minimum height")
+    min_faces: Optional[int] = Field(None, ge=0, description="Minimum face count")
+    max_faces: Optional[int] = Field(None, ge=0, description="Maximum face count")
+    has_preprocessing: Optional[bool] = Field(None, description="Filter by preprocessing status")
+    sort_by: str = Field("created_at", description="Sort field")
+    sort_order: str = Field("desc", description="Sort order: asc or desc")
+    skip: int = Field(0, ge=0, description="Pagination offset")
+    limit: int = Field(20, ge=1, le=100, description="Results per page")
+
+
+class AdvancedSearchResponse(BaseModel):
+    """Response for advanced search"""
+    results: List[dict]  # Can be templates or images
+    total: int
+    query: Optional[str] = None
+    filters_applied: dict
+
+
+class ImageMetadataUpdate(BaseModel):
+    """Request to update image metadata"""
+    filename: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=50)
+    tags: Optional[List[str]] = None
+
+
+class BatchTagOperation(BaseModel):
+    """Request for batch tag operation"""
+    image_ids: List[int] = Field(..., min_items=1)
+    tag_ids: List[int] = Field(..., min_items=1)
+    operation: str = Field(..., pattern="^(add|remove)$")
+
+
+class SearchSuggestionResponse(BaseModel):
+    """Response for search suggestions"""
+    suggestions: List[str]
+    popular_tags: List[TagResponse]
+    recent_searches: List[str]
