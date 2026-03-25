@@ -174,8 +174,8 @@ class TestDatabaseModels:
         from app.models.database import Template
 
         assert hasattr(Template, 'id')
-        assert hasattr(Template, 'image_id')
-        assert hasattr(Template, 'title')
+        assert hasattr(Template, 'original_image_id')
+        assert hasattr(Template, 'name')
         assert hasattr(Template, 'face_count')
         assert hasattr(Template, 'is_active')
 
@@ -185,7 +185,7 @@ class TestDatabaseModels:
 
         assert hasattr(FaceSwapTask, 'id')
         assert hasattr(FaceSwapTask, 'template_id')
-        assert hasattr(FaceSwapTask, 'husband_image_id')
-        assert hasattr(FaceSwapTask, 'wife_image_id')
+        assert hasattr(FaceSwapTask, 'husband_photo_id')
+        assert hasattr(FaceSwapTask, 'wife_photo_id')
         assert hasattr(FaceSwapTask, 'status')
         assert hasattr(FaceSwapTask, 'progress')

@@ -93,7 +93,7 @@ class CleanupService:
 
                 if not dry_run:
                     # Delete physical file
-                    file_path = storage_service.get_full_path(image.storage_path)
+                    file_path = storage_service.get_file_path(image.storage_path)
 
                     if Path(file_path).exists():
                         Path(file_path).unlink()
@@ -185,7 +185,7 @@ class CleanupService:
 
                 if not dry_run:
                     # Delete physical file
-                    file_path = storage_service.get_full_path(image.storage_path)
+                    file_path = storage_service.get_file_path(image.storage_path)
 
                     if Path(file_path).exists():
                         Path(file_path).unlink()
@@ -273,7 +273,7 @@ class CleanupService:
 
                 if not dry_run:
                     # Delete physical file
-                    file_path = storage_service.get_full_path(result_image.storage_path)
+                    file_path = storage_service.get_file_path(result_image.storage_path)
 
                     if Path(file_path).exists():
                         Path(file_path).unlink()
@@ -336,7 +336,7 @@ class CleanupService:
 
         # Get all storage paths from database
         db_images = db.query(Image).all()
-        db_paths = {storage_service.get_full_path(img.storage_path) for img in db_images}
+        db_paths = {str(storage_service.get_file_path(img.storage_path)) for img in db_images}
 
         # Scan storage directories
         storage_root = Path(storage_service.storage_path)

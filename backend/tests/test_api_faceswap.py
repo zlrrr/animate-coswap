@@ -5,11 +5,14 @@ These tests validate the API endpoints using TestClient
 """
 
 import pytest
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 import os
 import io
+import tempfile
 from PIL import Image as PILImage
 import numpy as np
 
@@ -18,11 +21,13 @@ from app.core.database import get_db
 from app.models.database import Base, Image, Template, FaceSwapTask
 
 
-# Create test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+# Test database setup - in-memory SQLite with StaticPool
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -37,19 +42,63 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def setup_database():
     """Create test database tables"""
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture(autouse=True)
+def mock_storage(tmp_path):
+    """
+    Mock storage_service so file uploads use a temp directory
+    and don't fail due to missing 'storage/template/' vs 'storage/templates/' dirs.
+    """
+    # Create subdirectories matching what StorageService expects
+    for subdir in ["source", "template", "templates", "results", "temp"]:
+        (tmp_path / subdir).mkdir(exist_ok=True)
+
+    with patch("app.api.v1.faceswap.storage_service") as mock_svc, \
+         patch("app.services.faceswap.processor.process_faceswap_task_sync", return_value=None):
+        call_count = {"n": 0}
+
+        def fake_save_file(file, filename, category="source"):
+            """Save file to tmp directory, return (relative_path, file_size)"""
+            call_count["n"] += 1
+            dest_dir = tmp_path / category
+            dest_dir.mkdir(exist_ok=True)
+            unique_name = f"{category}_{call_count['n']}_{filename}"
+            dest_path = dest_dir / unique_name
+            data = file.read()
+            dest_path.write_bytes(data)
+            relative_path = f"{category}/{unique_name}"
+            return relative_path, len(data)
+
+        def fake_get_file_path(storage_path):
+            return tmp_path / storage_path
+
+        def fake_get_file_url(storage_path):
+            return f"/storage/{storage_path}"
+
+        def fake_delete_file(storage_path):
+            fpath = tmp_path / storage_path
+            if fpath.exists():
+                fpath.unlink()
+
+        mock_svc.save_file = MagicMock(side_effect=fake_save_file)
+        mock_svc.get_file_path = MagicMock(side_effect=fake_get_file_path)
+        mock_svc.get_file_url = MagicMock(side_effect=fake_get_file_url)
+        mock_svc.delete_file = MagicMock(side_effect=fake_delete_file)
+
+        yield mock_svc
 
 
 @pytest.fixture
-def client(setup_database):
+def client():
     """Create test client"""
     return TestClient(app)
 
@@ -146,6 +195,7 @@ class TestTemplateEndpoints:
             files={"file": ("template.jpg", test_image_bytes, "image/jpeg")},
             params={"image_type": "template"}
         )
+        assert response.status_code == 200, f"Upload failed: {response.json()}"
         return response.json()["image_id"]
 
     def test_create_template(self, client, uploaded_image_id):
@@ -201,7 +251,8 @@ class TestTemplateEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 1
-        assert data[0]["title"] == "Test Template 1"
+        titles = [t["title"] for t in data]
+        assert "Test Template 1" in titles
 
     def test_list_templates_pagination(self, client):
         """Test template pagination"""
@@ -227,6 +278,7 @@ class TestFaceSwapWorkflow:
             files={"file": ("husband.jpg", test_image_bytes, "image/jpeg")},
             params={"image_type": "source"}
         )
+        assert response1.status_code == 200, f"Upload husband failed: {response1.json()}"
         husband_id = response1.json()["image_id"]
 
         # Upload wife image
@@ -241,6 +293,7 @@ class TestFaceSwapWorkflow:
             files={"file": ("wife.jpg", img_bytes2, "image/jpeg")},
             params={"image_type": "source"}
         )
+        assert response2.status_code == 200, f"Upload wife failed: {response2.json()}"
         wife_id = response2.json()["image_id"]
 
         # Upload template
@@ -255,6 +308,7 @@ class TestFaceSwapWorkflow:
             files={"file": ("template.jpg", img_bytes3, "image/jpeg")},
             params={"image_type": "template"}
         )
+        assert response3.status_code == 200, f"Upload template failed: {response3.json()}"
         template_image_id = response3.json()["image_id"]
 
         # Create template
@@ -265,6 +319,7 @@ class TestFaceSwapWorkflow:
                 "title": "Test Couple Template"
             }
         )
+        assert response4.status_code == 201, f"Create template failed: {response4.json()}"
         template_id = response4.json()["template_id"]
 
         return husband_id, wife_id, template_id
@@ -276,8 +331,8 @@ class TestFaceSwapWorkflow:
         response = client.post(
             "/api/v1/faceswap/swap-faces",
             json={
-                "husband_image_id": husband_id,
-                "wife_image_id": wife_id,
+                "husband_photo_id": husband_id,
+                "wife_photo_id": wife_id,
                 "template_id": template_id
             }
         )
@@ -295,8 +350,8 @@ class TestFaceSwapWorkflow:
         create_response = client.post(
             "/api/v1/faceswap/swap-faces",
             json={
-                "husband_image_id": husband_id,
-                "wife_image_id": wife_id,
+                "husband_photo_id": husband_id,
+                "wife_photo_id": wife_id,
                 "template_id": template_id
             }
         )
@@ -322,8 +377,8 @@ class TestFaceSwapWorkflow:
         response = client.post(
             "/api/v1/faceswap/swap-faces",
             json={
-                "husband_image_id": 99999,
-                "wife_image_id": 99998,
+                "husband_photo_id": 99999,
+                "wife_photo_id": 99998,
                 "template_id": 99997
             }
         )
@@ -338,7 +393,7 @@ class TestAPIValidation:
         """Test API with missing required fields"""
         response = client.post(
             "/api/v1/faceswap/swap-faces",
-            json={"husband_image_id": 1}  # Missing other fields
+            json={"husband_photo_id": 1}  # Missing other fields
         )
 
         assert response.status_code == 422  # Validation error
@@ -348,8 +403,8 @@ class TestAPIValidation:
         response = client.post(
             "/api/v1/faceswap/swap-faces",
             json={
-                "husband_image_id": "not_a_number",
-                "wife_image_id": 2,
+                "husband_photo_id": "not_a_number",
+                "wife_photo_id": 2,
                 "template_id": 3
             }
         )
