@@ -2,16 +2,17 @@
  * Image Uploader Component
  *
  * Allows users to upload images (husband/wife photos)
+ * Updated for Phase 1.5 API compatibility
  */
 
 import React, { useState } from 'react';
 import { Upload, Button, message, Image } from 'antd';
 import { UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { apiClient, ImageUploadResponse } from '../services/api';
+import { apiClient, PhotoUploadResponse } from '../services/api';
 
 interface ImageUploaderProps {
-  onUploadComplete: (imageData: ImageUploadResponse) => void;
+  onUploadComplete: (photoData: PhotoUploadResponse) => void;
   imageType: 'husband' | 'wife' | 'template';
   label?: string;
 }
@@ -22,7 +23,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   label,
 }) => {
   const [uploading, setUploading] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState<ImageUploadResponse | null>(null);
+  const [uploadedPhoto, setUploadedPhoto] = useState<PhotoUploadResponse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleUpload = async (file: File) => {
@@ -36,11 +37,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       };
       reader.readAsDataURL(file);
 
-      // Upload to server
-      const response = await apiClient.uploadImage(file, 'source');
+      // Upload to server using Phase 1.5 photo upload API
+      const response = await apiClient.uploadPhoto(file);
 
       message.success(`${file.name} uploaded successfully!`);
-      setUploadedImage(response);
+      setUploadedPhoto(response);
       onUploadComplete(response);
     } catch (error: any) {
       message.error(`Upload failed: ${error.response?.data?.detail || error.message}`);
@@ -51,7 +52,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const handleRemove = () => {
-    setUploadedImage(null);
+    setUploadedPhoto(null);
     setPreviewUrl(null);
   };
 
@@ -83,7 +84,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         {label || `Upload ${imageType.charAt(0).toUpperCase() + imageType.slice(1)}'s Photo`}
       </div>
 
-      {!uploadedImage ? (
+      {!uploadedPhoto ? (
         <Upload
           beforeUpload={beforeUpload}
           showUploadList={false}
@@ -104,16 +105,22 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <Image
             src={previewUrl || ''}
-            alt={uploadedImage.filename}
+            alt={uploadedPhoto.filename}
             width={200}
             style={{ borderRadius: 8 }}
           />
           <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-            {uploadedImage.filename}
+            {uploadedPhoto.filename}
             <br />
-            {uploadedImage.width} × {uploadedImage.height}
+            {uploadedPhoto.width} × {uploadedPhoto.height}
             <br />
-            {(uploadedImage.file_size / 1024).toFixed(1)} KB
+            {(uploadedPhoto.file_size / 1024).toFixed(1)} KB
+            {uploadedPhoto.storage_type === 'temporary' && (
+              <>
+                <br />
+                <span style={{ color: '#faad14' }}>⏰ Temporary (24h)</span>
+              </>
+            )}
           </div>
           <Button
             danger

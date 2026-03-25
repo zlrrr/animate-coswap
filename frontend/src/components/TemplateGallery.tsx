@@ -84,7 +84,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               cover={
                 <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
                   <img
-                    alt={template.title}
+                    alt={template.name}
                     src={apiClient.getImageUrl(template.image_url)}
                     style={{
                       width: '100%',
@@ -119,11 +119,14 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               }}
             >
               <Meta
-                title={template.title}
+                title={template.name}
                 description={
                   <div>
                     <Tag color="blue">{template.category}</Tag>
                     <Tag>{template.face_count} faces</Tag>
+                    {template.is_preprocessed && (
+                      <Tag color="green">Preprocessed</Tag>
+                    )}
                   </div>
                 }
               />

@@ -1,7 +1,7 @@
 """API v1 routes"""
 
 from fastapi import APIRouter
-from app.api.v1 import faceswap, faceswap_v15, photos, templates, templates_preprocessing, images, cleanup
+from app.api.v1 import faceswap, faceswap_v15, photos, templates, templates_preprocessing, images, cleanup, catcher, browser
 
 api_router = APIRouter()
 
@@ -50,4 +50,16 @@ api_router.include_router(
     cleanup.router,
     prefix="/admin",
     tags=["cleanup"]
+)
+
+# Phase 3: Catcher Service (Image Collection)
+api_router.include_router(
+    catcher.router,
+    tags=["catcher"]
+)
+
+# Phase 4: Browser Service (Image Management)
+api_router.include_router(
+    browser.router,
+    tags=["browser"]
 )

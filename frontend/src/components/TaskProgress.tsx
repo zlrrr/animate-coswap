@@ -2,6 +2,7 @@
  * Task Progress Component
  *
  * Displays real-time progress of face-swap task
+ * Updated for Phase 1.5 API compatibility
  */
 
 import React, { useEffect, useState } from 'react';
@@ -15,7 +16,7 @@ import {
 import { apiClient, TaskStatus } from '../services/api';
 
 interface TaskProgressProps {
-  taskId: number;
+  taskId: string;  // Changed from number to string for Phase 1.5
   onComplete?: (task: TaskStatus) => void;
   onError?: (error: string) => void;
 }
