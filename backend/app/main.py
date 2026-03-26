@@ -4,22 +4,70 @@ Couple Face-Swap API - Main Application
 FastAPI application for face-swapping service
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
+import json
+import time
+import uuid
 import os
 
 from app.core.config import settings
 from app.core.database import init_db, check_db_connection
 from app.api.v1 import api_router
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+
+class JSONFormatter(logging.Formatter):
+    """Structured JSON log formatter for production use."""
+
+    def format(self, record):
+        log_entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[0]:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        # Include extra fields if present
+        for key in ("request_id", "method", "path", "status_code", "duration_ms"):
+            if hasattr(record, key):
+                log_entry[key] = getattr(record, key)
+        return json.dumps(log_entry, ensure_ascii=False)
+
+
+def setup_logging():
+    """Configure application logging based on settings."""
+    log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Remove existing handlers to avoid duplicates
+    root_logger.handlers.clear()
+
+    handler = logging.StreamHandler()
+    handler.setLevel(log_level)
+
+    if settings.LOG_FORMAT.lower() == "json":
+        handler.setFormatter(JSONFormatter())
+    else:
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        ))
+
+    root_logger.addHandler(handler)
+
+    # Quiet noisy third-party loggers
+    for name in ("uvicorn.access", "sqlalchemy.engine"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Create FastAPI application
@@ -40,6 +88,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Log every request with timing and a correlation request_id."""
+    request_id = request.headers.get("X-Request-ID", uuid.uuid4().hex[:12])
+    start = time.time()
+
+    response = await call_next(request)
+
+    duration_ms = round((time.time() - start) * 1000, 1)
+    logger.info(
+        "%s %s -> %s (%.1fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        },
+    )
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 # Mount static files (for serving uploaded images)
 storage_path = os.path.join(os.getcwd(), settings.STORAGE_PATH)
