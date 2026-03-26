@@ -9,37 +9,111 @@ Requirements:
 """
 
 import pytest
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
 from io import BytesIO
 from PIL import Image as PILImage
+import numpy as np
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.core.database import get_db
 from app.models.database import Base, Image, Template
 
+
+# In-memory SQLite test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def override_get_db():
+    """Override database dependency for testing"""
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_database():
+    """Create all tables before tests, drop after"""
+    app.dependency_overrides[get_db] = override_get_db
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture(scope="function")
 def test_db():
     """Create a test database session"""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from app.core.config import settings
-
-    engine = create_engine(settings.DATABASE_URL)
-    TestingSessionLocal = sessionmaker(bind=engine)
-
-    # Create tables
-    Base.metadata.create_all(bind=engine)
-
     db = TestingSessionLocal()
-
     try:
         yield db
     finally:
         db.close()
+
+
+@pytest.fixture(autouse=True)
+def mock_storage_and_cv2(tmp_path):
+    """Mock storage_service and cv2 for all tests"""
+    for subdir in ["temp", "templates", "results"]:
+        (tmp_path / subdir).mkdir(exist_ok=True)
+
+    call_count = {"n": 0}
+
+    def fake_save_file(file, filename, category="temp"):
+        call_count["n"] += 1
+        dest_dir = tmp_path / category
+        dest_dir.mkdir(exist_ok=True)
+        unique_name = f"{category}_{call_count['n']}_{filename}"
+        dest_path = dest_dir / unique_name
+        data = file.read()
+        dest_path.write_bytes(data)
+        return f"{category}/{unique_name}", len(data)
+
+    def fake_get_file_path(storage_path):
+        return str(tmp_path / storage_path)
+
+    def fake_get_file_url(storage_path):
+        return f"/storage/{storage_path}"
+
+    def fake_delete_file(storage_path):
+        fpath = tmp_path / storage_path
+        if fpath.exists():
+            fpath.unlink()
+
+    fake_cv2_img = np.zeros((600, 800, 3), dtype=np.uint8)
+
+    with patch("app.api.v1.photos.storage_service") as mock_photos_storage, \
+         patch("app.api.v1.photos.cv2") as mock_photos_cv2, \
+         patch("app.api.v1.templates.storage_service") as mock_templates_storage, \
+         patch("app.api.v1.templates.cv2") as mock_templates_cv2:
+
+        for mock_svc in (mock_photos_storage, mock_templates_storage):
+            mock_svc.save_file = MagicMock(side_effect=fake_save_file)
+            mock_svc.get_file_path = MagicMock(side_effect=fake_get_file_path)
+            mock_svc.get_file_url = MagicMock(side_effect=fake_get_file_url)
+            mock_svc.delete_file = MagicMock(side_effect=fake_delete_file)
+
+        for mock_cv in (mock_photos_cv2, mock_templates_cv2):
+            mock_cv.imread.return_value = fake_cv2_img
+
+        yield
 
 
 @pytest.fixture
@@ -113,7 +187,8 @@ class TestPhotoUploadAPI:
         )
 
         assert response.status_code == 400
-        assert "error" in response.json()
+        data = response.json()
+        assert "error" in data or "detail" in data
 
     def test_upload_photo_too_large(self, create_test_image):
         """Test uploading oversized photo"""

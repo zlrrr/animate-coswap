@@ -21,6 +21,8 @@ from app.models.schemas import (
 )
 from app.utils.storage import storage_service
 
+import uuid
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -131,8 +133,8 @@ async def swap_faces(
         Task ID and status
     """
     # Validate that images exist
-    husband_image = db.query(Image).filter(Image.id == request.husband_image_id).first()
-    wife_image = db.query(Image).filter(Image.id == request.wife_image_id).first()
+    husband_image = db.query(Image).filter(Image.id == request.husband_photo_id).first()
+    wife_image = db.query(Image).filter(Image.id == request.wife_photo_id).first()
     template = db.query(Template).filter(Template.id == request.template_id).first()
 
     if not husband_image:
@@ -144,9 +146,10 @@ async def swap_faces(
 
     # Create task record
     task = FaceSwapTask(
+        task_id=f"task_{uuid.uuid4().hex[:16]}",
         template_id=request.template_id,
-        husband_image_id=request.husband_image_id,
-        wife_image_id=request.wife_image_id,
+        husband_photo_id=request.husband_photo_id,
+        wife_photo_id=request.wife_photo_id,
         status="pending",
         progress=0,
         created_at=datetime.utcnow()
@@ -165,7 +168,7 @@ async def swap_faces(
     background_tasks.add_task(process_faceswap_task_sync, task.id)
 
     return FaceSwapResponse(
-        task_id=task.id,
+        task_id=task.task_id,
         status=task.status,
         created_at=task.created_at
     )
@@ -173,20 +176,27 @@ async def swap_faces(
 
 @router.get("/task/{task_id}", response_model=TaskStatusResponse)
 async def get_task_status(
-    task_id: int,
+    task_id: str,
     db: Session = Depends(get_db)
 ):
     """
     Get face-swap task status and result
 
     Args:
-        task_id: Task ID
+        task_id: Task ID (integer ID or string task_id)
         db: Database session
 
     Returns:
         Task status and result information
     """
-    task = db.query(FaceSwapTask).filter(FaceSwapTask.id == task_id).first()
+    # Try string task_id first, then integer id
+    task = db.query(FaceSwapTask).filter(FaceSwapTask.task_id == task_id).first()
+    if not task:
+        try:
+            int_id = int(task_id)
+            task = db.query(FaceSwapTask).filter(FaceSwapTask.id == int_id).first()
+        except (ValueError, TypeError):
+            pass
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -199,14 +209,15 @@ async def get_task_status(
             result_image_url = storage_service.get_file_url(result_image.storage_path)
 
     return TaskStatusResponse(
-        task_id=task.id,
+        task_id=task.task_id,
         status=task.status,
-        progress=task.progress,
+        progress=task.progress or 0,
         result_image_url=result_image_url,
         processing_time=task.processing_time,
         error_message=task.error_message,
         created_at=task.created_at,
-        completed_at=task.completed_at
+        completed_at=task.completed_at,
+        face_mappings=task.face_mappings
     )
 
 
@@ -244,11 +255,11 @@ async def list_templates(
     # Convert to response model
     result = []
     for template in templates:
-        image = db.query(Image).filter(Image.id == template.image_id).first()
+        image = db.query(Image).filter(Image.id == template.original_image_id).first()
         if image:
             result.append(TemplateListItem(
                 id=template.id,
-                title=template.title,
+                title=template.name,
                 image_url=storage_service.get_file_url(image.storage_path),
                 category=image.category or "custom",
                 face_count=template.face_count,
@@ -314,13 +325,11 @@ async def create_template(
 
     # Create template
     template = Template(
-        image_id=image_id,
-        title=title,
+        original_image_id=image_id,
+        name=title,
         description=description,
-        artist=artist,
-        source_url=source_url,
+        category="custom",
         face_count=face_count,
-        face_positions=face_positions,
         popularity_score=0,
         is_active=True,
         created_at=datetime.utcnow()
@@ -330,11 +339,11 @@ async def create_template(
     db.commit()
     db.refresh(template)
 
-    logger.info(f"Template created: id={template.id}, title={title}, faces={face_count}")
+    logger.info(f"Template created: id={template.id}, name={title}, faces={face_count}")
 
     return {
         "template_id": template.id,
-        "title": template.title,
+        "title": template.name,
         "face_count": template.face_count,
         "image_url": storage_service.get_file_url(image.storage_path)
     }

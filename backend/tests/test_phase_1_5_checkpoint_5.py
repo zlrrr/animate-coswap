@@ -16,13 +16,60 @@ from pathlib import Path
 import tempfile
 import shutil
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from app.main import app
 from app.core.database import get_db
-from app.models.database import Image, FaceSwapTask
+from app.models.database import Base, Image, FaceSwapTask
 from app.services.cleanup import CleanupService
 from app.utils.storage import storage_service
 
+# In-memory SQLite test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def override_get_db():
+    """Override database dependency for testing"""
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_database():
+    """Create all tables before tests, drop after"""
+    app.dependency_overrides[get_db] = override_get_db
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture(autouse=True)
+def clean_tables():
+    """Clean database tables between tests to prevent state leakage"""
+    yield
+    db = TestingSessionLocal()
+    try:
+        db.query(FaceSwapTask).delete()
+        db.query(Image).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 @pytest.fixture
@@ -35,7 +82,7 @@ def temp_storage():
     for category in ['photos', 'templates', 'preprocessed', 'results']:
         (Path(temp_dir) / category).mkdir(parents=True, exist_ok=True)
 
-    storage_service.storage_path = temp_dir
+    storage_service.storage_path = Path(temp_dir)
 
     yield temp_dir
 
@@ -54,7 +101,7 @@ def create_temp_image(temp_storage):
         session_id: str = None,
         storage_type: str = 'temporary'
     ):
-        db = next(get_db())
+        db = next(override_get_db())
 
         # Create physical file
         category_dir = Path(temp_storage) / 'photos'
@@ -107,7 +154,7 @@ def create_temp_image(temp_storage):
 def create_task_with_result(temp_storage, create_temp_image):
     """Helper to create task with result image"""
     def _create(completed_days_ago: int = 0):
-        db = next(get_db())
+        db = next(override_get_db())
 
         # Create photos and result image
         husband_photo = create_temp_image()
@@ -190,7 +237,7 @@ class TestExpiredCleanup:
 
     def test_cleanup_skips_active_task_images(self, create_temp_image):
         """Test cleanup skips images used by active tasks"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         # Create expired image
         expired = create_temp_image(expired=True)
@@ -333,7 +380,7 @@ class TestOrphanedFilesCleanup:
 
     def test_cleanup_orphaned_files(self, temp_storage):
         """Test cleanup of files not in database"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         # Create orphaned file
         orphaned_path = Path(temp_storage) / 'photos' / 'orphaned.jpg'
@@ -491,7 +538,7 @@ class TestCleanupService:
 
     def test_cleanup_expired_images_service(self, create_temp_image):
         """Test CleanupService.cleanup_expired_images"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         # Create expired images
         expired1 = create_temp_image(expired=True)
@@ -505,7 +552,7 @@ class TestCleanupService:
 
     def test_cleanup_session_service(self, create_temp_image):
         """Test CleanupService.cleanup_session_images"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         session_id = "service_test_session"
         img1 = create_temp_image(session_id=session_id)
@@ -518,7 +565,7 @@ class TestCleanupService:
 
     def test_cleanup_all_service(self, create_temp_image, create_task_with_result):
         """Test CleanupService.cleanup_all"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         expired = create_temp_image(expired=True)
         old_task = create_task_with_result(completed_days_ago=35)
@@ -533,7 +580,7 @@ class TestCleanupService:
 
     def test_get_cleanup_stats_service(self, create_temp_image):
         """Test CleanupService.get_cleanup_stats"""
-        db = next(get_db())
+        db = next(override_get_db())
 
         expired = create_temp_image(expired=True)
 
